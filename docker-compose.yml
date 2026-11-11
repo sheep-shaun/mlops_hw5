@@ -1,0 +1,339 @@
+name: mlops-monitoring
+
+services:
+  kafka:
+    image: apache/kafka:3.9.1
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:9098,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:9098
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_HEAP_OPTS: -Xms128m -Xmx256m
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    ports:
+      - "127.0.0.1:9098:9098"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "/opt/kafka/bin/kafka-topics.sh",
+          "--bootstrap-server",
+          "localhost:9092",
+          "--list",
+        ]
+      interval: 10s
+      timeout: 10s
+      start_period: 30s
+      retries: 12
+    restart: unless-stopped
+    networks: [hw5]
+
+  kafka-setup:
+    image: apache/kafka:3.9.1
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-ec"]
+    command:
+      - |
+        for topic in transactions scores; do
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic "$$topic" --partitions 3 --replication-factor 1
+        done
+    networks: [hw5]
+
+  postgres:
+    image: postgres:16.9-alpine
+    environment:
+      POSTGRES_USER: fraud
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fraud}
+      POSTGRES_DB: fraud
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fraud -d fraud"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    networks: [hw5]
+
+  fraud_detector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mlops-hw5-app:local
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TRANSACTIONS_TOPIC: transactions
+      KAFKA_SCORES_TOPIC: scores
+      MODELS_DIR: /artifacts/models
+    volumes:
+      - ./artifacts/models:/artifacts/models:ro
+    depends_on:
+      initialize:
+        condition: service_completed_successfully
+      kafka-setup:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:9100:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/metrics', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    restart: unless-stopped
+    networks: [hw5]
+
+  score_writer:
+    command: ["python", "-m", "score_writer.app"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mlops-hw5-app:local
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_SCORES_TOPIC: scores
+      DATABASE_URL: postgresql://fraud:${POSTGRES_PASSWORD:-fraud}@postgres:5432/fraud
+    depends_on:
+      initialize:
+        condition: service_completed_successfully
+      kafka-setup:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:9101:8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/metrics', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    restart: unless-stopped
+    networks: [hw5]
+
+  interface:
+    command: ["python", "-m", "streamlit", "run", "interface/app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
+    volumes:
+      - ./data:/app/data:ro
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mlops-hw5-app:local
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TRANSACTIONS_TOPIC: transactions
+      DATABASE_URL: postgresql://fraud:${POSTGRES_PASSWORD:-fraud}@postgres:5432/fraud
+    ports:
+      - "127.0.0.1:8505:8501"
+    depends_on:
+      initialize:
+        condition: service_completed_successfully
+      kafka-setup:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health', timeout=3)",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+    restart: unless-stopped
+    networks: [hw5]
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.2
+    environment:
+      JAVA_OPTS: -Xms64m -Xmx192m
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    ports:
+      - "127.0.0.1:8086:8080"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [hw5]
+
+  initialize:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mlops-hw5-app:local
+    command: ["python", "-m", "pipeline.initialize"]
+    environment:
+      DATABASE_URL: postgresql://fraud:${POSTGRES_PASSWORD:-fraud}@postgres:5432/fraud
+      TRAIN_DATA_CSV: ${TRAIN_DATA_CSV:-/data/demo_train.csv}
+      MODELS_DIR: /artifacts/models
+    volumes:
+      - ./data:/data:ro
+      - ./artifacts/models:/artifacts/models
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [hw5]
+
+  airflow:
+    init: true
+    build:
+      context: .
+      dockerfile: airflow/Dockerfile
+    user: "0:0"
+    environment:
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: sqlite:////opt/airflow/airflow_state/airflow.db
+      AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: "20"
+      AIRFLOW__SCHEDULER__PARSING_PROCESSES: "1"
+      AIRFLOW__WEBSERVER__WORKERS: "1"
+      AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session
+      PYTHONPATH: /opt/airflow
+      _AIRFLOW_WWW_USER_USERNAME: admin
+      _AIRFLOW_WWW_USER_PASSWORD: admin
+      DATABASE_URL: postgresql://fraud:${POSTGRES_PASSWORD:-fraud}@postgres:5432/fraud
+      TRAINING_DATA_DIR: /opt/airflow/training_data
+      MODELS_DIR: /opt/airflow/models
+      REPORTS_DIR: /opt/airflow/reports
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+    volumes:
+      - ./dags:/opt/airflow/dags:ro
+      - ./pipeline:/opt/airflow/pipeline:ro
+      - ./common:/opt/airflow/common:ro
+      - ./fraud_detector:/opt/airflow/fraud_detector:ro
+      - ./artifacts/models:/opt/airflow/models
+      - ./artifacts/reports:/opt/airflow/reports
+      - training-data:/opt/airflow/training_data
+      - airflow-state:/opt/airflow/airflow_state
+    ports:
+      - "127.0.0.1:8087:8080"
+    depends_on:
+      initialize:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json, urllib.request; r=json.load(urllib.request.urlopen('http://localhost:8080/health',timeout=5)); assert r['metadatabase']['status']==r['scheduler']['status']=='healthy'"]
+      interval: 20s
+      timeout: 10s
+      start_period: 90s
+      retries: 15
+    restart: unless-stopped
+    networks: [hw5]
+
+  reports:
+    image: python:3.12-slim
+    command: ["python", "-m", "http.server", "8000", "--directory", "/reports"]
+    volumes:
+      - ./artifacts/reports:/reports:ro
+    ports:
+      - "127.0.0.1:8088:8000"
+    restart: unless-stopped
+    networks: [hw5]
+
+
+  transaction_simulator:
+    image: mlops-hw5-app:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python", "-m", "transaction_simulator.app"]
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      STREAM_DATA_CSV: ${STREAM_DATA_CSV:-/data/demo_train.csv}
+      STREAM_MODE: ${STREAM_MODE:-mixed}
+      SEND_INTERVAL_SECONDS: ${SEND_INTERVAL_SECONDS:-0.1}
+    volumes:
+      - ./data:/data:ro
+    depends_on:
+      fraud_detector:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [hw5]
+
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    networks: [hw5]
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_MIN_REFRESH_INTERVAL: 1s
+      GF_AUTH_BASIC_ENABLED: "true"
+      GF_UNIFIED_ALERTING_MIN_INTERVAL: 10s
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    networks: [hw5]
+
+  node-exporter:
+    image: prom/node-exporter:v1.9.0
+    pid: host
+    command:
+      - --path.rootfs=/host
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run)($$|/)
+    volumes:
+      - /:/host:ro,rslave
+    restart: unless-stopped
+    networks: [hw5]
+
+networks:
+  hw5:
+    driver: bridge
+
+volumes:
+  kafka-data:
+  postgres-data:
+  training-data:
+  airflow-state:
+  prometheus-data:
+  grafana-data:

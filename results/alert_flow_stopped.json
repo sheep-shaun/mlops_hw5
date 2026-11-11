@@ -1,0 +1,120 @@
+{
+  "status": "success",
+  "data": {
+    "groups": [
+      {
+        "name": "Fraud service",
+        "file": "Fraud monitoring",
+        "folderUid": "bg3weaop9uayob",
+        "rules": [
+          {
+            "state": "inactive",
+            "name": "Высокая доля фрода",
+            "query": "rate(fraud_flagged_total[2m]) / clamp_min(rate(fraud_transactions_total[2m]), 0.001)",
+            "duration": 15,
+            "annotations": {
+              "__dashboardUid__": "hw5-scoring",
+              "__panelId__": "8",
+              "summary": "Доля фрода выше 35% за 2 минуты"
+            },
+            "alerts": [
+              {
+                "labels": {
+                  "alertname": "Высокая доля фрода",
+                  "grafana_folder": "Fraud monitoring",
+                  "instance": "fraud_detector:8000",
+                  "job": "scoring",
+                  "service": "scoring",
+                  "severity": "warning"
+                },
+                "annotations": {
+                  "__dashboardUid__": "hw5-scoring",
+                  "__panelId__": "8",
+                  "summary": "Доля фрода выше 35% за 2 минуты"
+                },
+                "state": "Normal",
+                "activeAt": "2026-11-10T17:24:40Z",
+                "value": ""
+              }
+            ],
+            "totals": {
+              "normal": 1
+            },
+            "totalsFiltered": {
+              "normal": 1
+            },
+            "uid": "hw5-high-fraud",
+            "folderUid": "bg3weaop9uayob",
+            "labels": {
+              "service": "scoring",
+              "severity": "warning"
+            },
+            "health": "ok",
+            "type": "alerting",
+            "lastEvaluation": "2026-11-10T17:33:20Z",
+            "evaluationTime": 5.005123738
+          },
+          {
+            "state": "firing",
+            "name": "Остановился поток",
+            "query": "time() - fraud_last_processed_timestamp_seconds",
+            "duration": 15,
+            "annotations": {
+              "__dashboardUid__": "hw5-scoring",
+              "__panelId__": "4",
+              "summary": "Нет результатов скоринга больше 30 секунд"
+            },
+            "activeAt": "2026-11-10T17:33:00Z",
+            "alerts": [
+              {
+                "labels": {
+                  "alertname": "Остановился поток",
+                  "grafana_folder": "Fraud monitoring",
+                  "instance": "fraud_detector:8000",
+                  "job": "scoring",
+                  "service": "scoring",
+                  "severity": "warning"
+                },
+                "annotations": {
+                  "__dashboardUid__": "hw5-scoring",
+                  "__panelId__": "4",
+                  "summary": "Нет результатов скоринга больше 30 секунд"
+                },
+                "state": "Alerting",
+                "activeAt": "2026-11-10T17:33:00Z",
+                "value": "1e+00"
+              }
+            ],
+            "totals": {
+              "alerting": 1
+            },
+            "totalsFiltered": {
+              "alerting": 1
+            },
+            "uid": "hw5-flow-stopped",
+            "folderUid": "bg3weaop9uayob",
+            "labels": {
+              "service": "scoring",
+              "severity": "warning"
+            },
+            "health": "ok",
+            "type": "alerting",
+            "lastEvaluation": "2026-11-10T17:33:30Z",
+            "evaluationTime": 0.008046001
+          }
+        ],
+        "totals": {
+          "firing": 1,
+          "inactive": 1
+        },
+        "interval": 10,
+        "lastEvaluation": "2026-11-10T17:33:30Z",
+        "evaluationTime": 0.008046001
+      }
+    ],
+    "totals": {
+      "firing": 1,
+      "inactive": 1
+    }
+  }
+}

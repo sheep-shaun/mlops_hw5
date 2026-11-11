@@ -1,0 +1,470 @@
+{
+  "uid": "hw5-business",
+  "title": "04 Бизнес и сегменты",
+  "schemaVersion": 40,
+  "version": 1,
+  "tags": [
+    "hw5",
+    "fraud"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "refresh": "5s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "1s",
+      "5s",
+      "10s",
+      "30s",
+      "1m"
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Плотность скоров: $us_state / $merch",
+      "type": "barchart",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "rawQuery": true,
+          "rawSql": "WITH bins AS (SELECT generate_series(0,19) AS bin), selected AS (\nSELECT least(19, floor(score * 20)::int) AS bin FROM transaction_scores\nWHERE $__timeFilter(scored_at) AND us_state IN (${us_state:sqlstring}) AND merch IN (${merch:sqlstring})), counts AS (\nSELECT bin, count(*) AS n FROM selected GROUP BY bin)\nSELECT to_char(b.bin * 0.05, '0.00') || ' -' || to_char((b.bin+1) * 0.05, '0.00') AS score_interval,\ncoalesce(c.n, 0)::double precision / greatest((SELECT count(*) FROM selected), 1) / 0.05 AS density\nFROM bins b LEFT JOIN counts c USING(bin) ORDER BY b.bin",
+          "format": "table",
+          "editorMode": "code",
+          "sql": {
+            "columns": [],
+            "groupBy": [],
+            "limit": 50
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 85,
+            "lineWidth": 1,
+            "gradientMode": "none",
+            "axisPlacement": "auto"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "auto",
+        "showValue": "never",
+        "groupWidth": 0.8,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "single"
+        },
+        "xTickLabelSpacing": 100
+      },
+      "description": "20 интервалов шириной 0.05. Плотность = число / (общее число * 0.05), площадь равна 1. Учитываются время, штат и мерчант."
+    },
+    {
+      "id": 2,
+      "title": "TPS обработки: $us_state / $merch",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(scored_at, '5s', 0), count(*) / 5.0 AS tps FROM transaction_scores WHERE $__timeFilter(scored_at) AND us_state IN (${us_state:sqlstring}) AND merch IN (${merch:sqlstring}) GROUP BY 1 ORDER BY 1",
+          "format": "time_series",
+          "editorMode": "code",
+          "sql": {
+            "columns": [],
+            "groupBy": [],
+            "limit": 50
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 12,
+            "showPoints": "never"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Число обработанных транзакций за 5 секунд / 5. Время scored_at, фильтры по штату и мерчанту."
+    },
+    {
+      "id": 3,
+      "title": "Доля фрода по категориям: последние 1000",
+      "type": "barchart",
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "rawQuery": true,
+          "rawSql": "WITH recent AS (SELECT cat_id, fraud_flag FROM transaction_scores ORDER BY id DESC LIMIT 1000)\nSELECT cat_id, avg(fraud_flag)::double precision AS fraud_rate FROM recent GROUP BY cat_id ORDER BY fraud_rate DESC",
+          "format": "table",
+          "editorMode": "code",
+          "sql": {
+            "columns": [],
+            "groupBy": [],
+            "limit": 50
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 85,
+            "lineWidth": 1,
+            "gradientMode": "none",
+            "axisPlacement": "auto"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "groupWidth": 0.8,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "description": "Последние 1000 записанных транзакций всего потока. При меньшем числе берутся все. Не зависит от фильтров и диапазона времени."
+    },
+    {
+      "id": 4,
+      "title": "Сумма операций с флагом фрода по категориям",
+      "type": "barchart",
+      "gridPos": {
+        "x": 12,
+        "y": 9,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "rawQuery": true,
+          "rawSql": "SELECT cat_id, coalesce(sum(amount) FILTER (WHERE fraud_flag = 1), 0) AS flagged_amount\nFROM transaction_scores WHERE $__timeFilter(scored_at) AND us_state IN (${us_state:sqlstring}) AND merch IN (${merch:sqlstring}) GROUP BY cat_id ORDER BY flagged_amount DESC NULLS LAST",
+          "format": "table",
+          "editorMode": "code",
+          "sql": {
+            "columns": [],
+            "groupBy": [],
+            "limit": 50
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "fillOpacity": 85,
+            "lineWidth": 1,
+            "gradientMode": "none",
+            "axisPlacement": "auto"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "groupWidth": 0.8,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "description": "Бизнес-метрика: денежный объем операций, требующих проверки. Это сумма помеченных моделью операций, не подтвержденный ущерб. Учитывает фильтры."
+    },
+    {
+      "id": 5,
+      "title": "Мерчанты по сумме подозрительных операций",
+      "type": "table",
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 24,
+        "h": 9
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres"
+          },
+          "rawQuery": true,
+          "rawSql": "SELECT merch, count(*) AS transactions, sum(fraud_flag) AS flagged,\navg(fraud_flag)::double precision AS fraud_rate, sum(amount) AS turnover,\ncoalesce(sum(amount) FILTER (WHERE fraud_flag = 1), 0) AS flagged_amount\nFROM transaction_scores WHERE $__timeFilter(scored_at) AND us_state IN (${us_state:sqlstring}) AND merch IN (${merch:sqlstring}) GROUP BY merch ORDER BY flagged_amount DESC LIMIT 10",
+          "format": "table",
+          "editorMode": "code",
+          "sql": {
+            "columns": [],
+            "groupBy": [],
+            "limit": 50
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "fraud_rate"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "description": "Позволяет выбрать приоритет ручной проверки по объему, а не только по числу операций."
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "us_state",
+        "label": "Штат",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "postgres"
+        },
+        "definition": "SELECT DISTINCT us_state FROM transaction_scores ORDER BY 1",
+        "query": "SELECT DISTINCT us_state FROM transaction_scores ORDER BY 1",
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "sort": 1,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": []
+      },
+      {
+        "name": "merch",
+        "label": "Мерчант",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "postgres"
+        },
+        "definition": "SELECT DISTINCT merch FROM transaction_scores WHERE us_state IN (${us_state:sqlstring}) ORDER BY 1",
+        "query": "SELECT DISTINCT merch FROM transaction_scores WHERE us_state IN (${us_state:sqlstring}) ORDER BY 1",
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "sort": 1,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": []
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [
+    {
+      "title": "Скоринг",
+      "type": "link",
+      "url": "/d/hw5-scoring",
+      "targetBlank": false
+    },
+    {
+      "title": "Запись",
+      "type": "link",
+      "url": "/d/hw5-writer",
+      "targetBlank": false
+    },
+    {
+      "title": "Система",
+      "type": "link",
+      "url": "/d/hw5-system",
+      "targetBlank": false
+    },
+    {
+      "title": "Бизнес",
+      "type": "link",
+      "url": "/d/hw5-business",
+      "targetBlank": false
+    }
+  ]
+}

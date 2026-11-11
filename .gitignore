@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+.kaggle/
+data/*.csv
+data/*.zip
+data/*.download
+!data/demo.csv
+!data/demo_train.csv
+artifacts/models/*
+artifacts/reports/*
+!artifacts/models/.gitkeep
+!artifacts/reports/.gitkeep

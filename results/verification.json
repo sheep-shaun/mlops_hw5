@@ -1,0 +1,316 @@
+{
+  "targets": {
+    "node": "up",
+    "scoring": "up",
+    "writer": "up"
+  },
+  "datasources": {
+    "prometheus": {
+      "details": {
+        "application": "Prometheus",
+        "features": {
+          "rulerApiEnabled": false
+        }
+      },
+      "message": "Successfully queried the Prometheus API.",
+      "status": "OK"
+    },
+    "postgres": {
+      "message": "Database Connection OK",
+      "status": "OK"
+    }
+  },
+  "panels": [
+    {
+      "dashboard": "hw5-business",
+      "id": 1,
+      "title": "Плотность скоров: $us_state / $merch",
+      "series_or_rows": [
+        20
+      ]
+    },
+    {
+      "dashboard": "hw5-business",
+      "id": 2,
+      "title": "TPS обработки: $us_state / $merch",
+      "series_or_rows": [
+        181
+      ]
+    },
+    {
+      "dashboard": "hw5-business",
+      "id": 3,
+      "title": "Доля фрода по категориям: последние 1000",
+      "series_or_rows": [
+        14
+      ]
+    },
+    {
+      "dashboard": "hw5-business",
+      "id": 4,
+      "title": "Сумма операций с флагом фрода по категориям",
+      "series_or_rows": [
+        14
+      ]
+    },
+    {
+      "dashboard": "hw5-business",
+      "id": 5,
+      "title": "Мерчанты по сумме подозрительных операций",
+      "series_or_rows": [
+        10
+      ]
+    },
+    {
+      "dashboard": "hw5-scoring",
+      "id": 1,
+      "title": "Обработано транзакций",
+      "series_or_rows": [
+        1
+      ]
+    },
+    {
+      "dashboard": "hw5-scoring",
+      "id": 2,
+      "title": "TPS скоринга",
+      "series_or_rows": [
+        1
+      ]
+    },
+    {
+      "dashboard": "hw5-scoring",
+      "id": 3,
+      "title": "Доля фрода за 2 минуты",
+      "series_or_rows": [
+        1
+      ]
+    },
+    {
+      "dashboard": "hw5-scoring",
+      "id": 4,
+      "title": "Секунд без результата",
+      "series_or_rows": [
+        1
+      ]
+    },
+    {
+      "dashboard": "hw5-scoring",
+      "id": 5,
+      "title": "Скорость обработки",
+      "series_or_rows": [
+        1
+      ]
+    },
+    {
+      "dashboard": "hw5-scoring",
+      "id": 6,
+      "title": "Обработка P50 и P95",
+      "series_or_rows": [
+        1,
+        1
+      ]
+    },
+    {
+      "dashboard": "hw5-scoring",
+      "id": 7,
+      "title": "Распределение скоров во времени",
+      "series_or_rows": [
+        21
+      ]
+    },
+    {
+      "dashboard": "hw5-scoring",
+      "id": 8,
+      "title": "Доля фрода",
+      "series_or_rows": [
+        1,
+        1
+      ]
+    },
+    {
+      "dashboard": "hw5-scoring",
+      "id": 9,
+      "title": "Задержка в Kafka P95",
+      "series_or_rows": [
+        1
+      ]
+    },
+    {
+      "dashboard": "hw5-scoring",
+      "id": 10,
+      "title": "Результаты по версии модели (PostgreSQL)",
+      "series_or_rows": [
+        1
+      ]
+    },
+    {
+      "dashboard": "hw5-scoring",
+      "id": 11,
+      "title": "Смены модели",
+      "series_or_rows": [
+        8
+      ]
+    },
+    {
+      "dashboard": "hw5-system",
+      "id": 1,
+      "title": "CPU",
+      "series_or_rows": [
+        1
+      ]
+    },
+    {
+      "dashboard": "hw5-system",
+      "id": 2,
+      "title": "Память",
+      "series_or_rows": [
+        1
+      ]
+    },
+    {
+      "dashboard": "hw5-system",
+      "id": 3,
+      "title": "Сеть",
+      "series_or_rows": [
+        1,
+        1
+      ]
+    },
+    {
+      "dashboard": "hw5-system",
+      "id": 4,
+      "title": "Чтение и запись диска",
+      "series_or_rows": [
+        1,
+        1
+      ]
+    },
+    {
+      "dashboard": "hw5-system",
+      "id": 5,
+      "title": "Занятое место",
+      "series_or_rows": [
+        1
+      ]
+    },
+    {
+      "dashboard": "hw5-system",
+      "id": 6,
+      "title": "Доступность источников",
+      "series_or_rows": [
+        3
+      ]
+    },
+    {
+      "dashboard": "hw5-writer",
+      "id": 1,
+      "title": "Записано скоров",
+      "series_or_rows": [
+        1
+      ]
+    },
+    {
+      "dashboard": "hw5-writer",
+      "id": 2,
+      "title": "Записано с флагом фрода",
+      "series_or_rows": [
+        1
+      ]
+    },
+    {
+      "dashboard": "hw5-writer",
+      "id": 4,
+      "title": "Скорость записи",
+      "series_or_rows": [
+        1
+      ]
+    },
+    {
+      "dashboard": "hw5-writer",
+      "id": 5,
+      "title": "Запись в БД P95",
+      "series_or_rows": [
+        1
+      ]
+    },
+    {
+      "dashboard": "hw5-writer",
+      "id": 6,
+      "title": "Распределение записанных скоров",
+      "series_or_rows": [
+        21
+      ]
+    },
+    {
+      "dashboard": "hw5-writer",
+      "id": 7,
+      "title": "Выявленный фрод за минуту",
+      "series_or_rows": [
+        1
+      ]
+    }
+  ],
+  "filtered_panels": [
+    {
+      "id": 1,
+      "rows": 20
+    },
+    {
+      "id": 2,
+      "rows": 181
+    }
+  ],
+  "filter_pair": {
+    "us_state": "MI",
+    "merch": "fraud_Hackett-Lueilwitz",
+    "n": 6
+  },
+  "model_versions": [
+    {
+      "model_version": "03fccf83941b5227",
+      "scores": 7911,
+      "fraud_rate": 0.04613828845910757
+    },
+    {
+      "model_version": "21516cc60eb09bf2",
+      "scores": 8333,
+      "fraud_rate": 0.03948157926317053
+    },
+    {
+      "model_version": "33dec018854b12be",
+      "scores": 147,
+      "fraud_rate": 0.05442176870748299
+    },
+    {
+      "model_version": "56f8ca8ea804fdce",
+      "scores": 15812,
+      "fraud_rate": 0.048570705793068554
+    },
+    {
+      "model_version": "8a372fc9619db3fd",
+      "scores": 14011,
+      "fraud_rate": 0.04039683106130897
+    },
+    {
+      "model_version": "beb186f287f533d3",
+      "scores": 30751,
+      "fraud_rate": 0.04305551038990602
+    },
+    {
+      "model_version": "cea127ea7aba21b5",
+      "scores": 140635,
+      "fraud_rate": 0.043303587300458635
+    },
+    {
+      "model_version": "f75b242083a6999f",
+      "scores": 4905,
+      "fraud_rate": 0.145158002038736
+    },
+    {
+      "model_version": "initial",
+      "scores": 2549,
+      "fraud_rate": 0.029030992546096507
+    }
+  ],
+  "verified_at_utc": "2026-11-11T12:58:11Z"
+}

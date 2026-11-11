@@ -1,0 +1,157 @@
+{
+  "apiVersion": 1,
+  "groups": [
+    {
+      "orgId": 1,
+      "name": "Fraud service",
+      "folder": "Fraud monitoring",
+      "interval": "10s",
+      "rules": [
+        {
+          "uid": "hw5-high-fraud",
+          "title": "Высокая доля фрода",
+          "condition": "C",
+          "for": "15s",
+          "noDataState": "Alerting",
+          "execErrState": "Alerting",
+          "isPaused": false,
+          "annotations": {
+            "summary": "Доля фрода выше 35% за 2 минуты",
+            "__dashboardUid__": "hw5-scoring",
+            "__panelId__": "8"
+          },
+          "labels": {
+            "severity": "warning",
+            "service": "scoring"
+          },
+          "data": [
+            {
+              "refId": "A",
+              "relativeTimeRange": {
+                "from": 180,
+                "to": 0
+              },
+              "datasourceUid": "prometheus",
+              "model": {
+                "refId": "A",
+                "expr": "rate(fraud_flagged_total[2m]) / clamp_min(rate(fraud_transactions_total[2m]), 0.001)",
+                "instant": true,
+                "range": false,
+                "intervalMs": 1000,
+                "maxDataPoints": 43200
+              }
+            },
+            {
+              "refId": "C",
+              "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+              },
+              "datasourceUid": "__expr__",
+              "model": {
+                "refId": "C",
+                "type": "threshold",
+                "expression": "A",
+                "conditions": [
+                  {
+                    "evaluator": {
+                      "type": "gt",
+                      "params": [
+                        0.35
+                      ]
+                    },
+                    "operator": {
+                      "type": "and"
+                    },
+                    "reducer": {
+                      "type": "last",
+                      "params": []
+                    },
+                    "type": "query",
+                    "query": {
+                      "params": [
+                        "C"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "uid": "hw5-flow-stopped",
+          "title": "Остановился поток",
+          "condition": "C",
+          "for": "15s",
+          "noDataState": "Alerting",
+          "execErrState": "Alerting",
+          "isPaused": false,
+          "annotations": {
+            "summary": "Нет результатов скоринга больше 30 секунд",
+            "__dashboardUid__": "hw5-scoring",
+            "__panelId__": "4"
+          },
+          "labels": {
+            "severity": "warning",
+            "service": "scoring"
+          },
+          "data": [
+            {
+              "refId": "A",
+              "relativeTimeRange": {
+                "from": 180,
+                "to": 0
+              },
+              "datasourceUid": "prometheus",
+              "model": {
+                "refId": "A",
+                "expr": "time() - fraud_last_processed_timestamp_seconds",
+                "instant": true,
+                "range": false,
+                "intervalMs": 1000,
+                "maxDataPoints": 43200
+              }
+            },
+            {
+              "refId": "C",
+              "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+              },
+              "datasourceUid": "__expr__",
+              "model": {
+                "refId": "C",
+                "type": "threshold",
+                "expression": "A",
+                "conditions": [
+                  {
+                    "evaluator": {
+                      "type": "gt",
+                      "params": [
+                        30
+                      ]
+                    },
+                    "operator": {
+                      "type": "and"
+                    },
+                    "reducer": {
+                      "type": "last",
+                      "params": []
+                    },
+                    "type": "query",
+                    "query": {
+                      "params": [
+                        "C"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
